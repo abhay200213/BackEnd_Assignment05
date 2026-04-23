@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
 import eventRoutes from "./api/v1/routes/eventRoutes";
+import { swaggerSpec } from "../config/swagger";
 
 const app = express();
 
@@ -28,7 +30,6 @@ app.use(
 app.use(
   cors({
     origin(origin, callback) {
-      // allow requests with no browser Origin header, like Postman/curl
       if (!origin) {
         return callback(null, true);
       }
@@ -48,6 +49,38 @@ app.use(
 
 app.use(express.json());
 
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/**
+ * @openapi
+ * /api/v1/health:
+ *   get:
+ *     summary: Health check
+ *     description: Returns API uptime and server status.
+ *     tags:
+ *       - Health
+ *     responses:
+ *       200:
+ *         description: API is running successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "OK"
+ *                 uptime:
+ *                   type: number
+ *                   example: 12.45
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2026-04-23T14:45:00.000Z"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ */
 app.get("/api/v1/health", (_req, res) => {
   res.status(200).json({
     status: "OK",
