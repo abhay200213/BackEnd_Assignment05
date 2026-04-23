@@ -9,6 +9,10 @@
     {
       "url": "http://localhost:3000",
       "description": "Local development server"
+    },
+    {
+      "url": "https://abhay200213.github.io/BackEnd_Assignment05",
+      "description": "GitHub Pages documentation"
     }
   ],
   "paths": {
