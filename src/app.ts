@@ -5,25 +5,48 @@ import eventRoutes from "./api/v1/routes/eventRoutes";
 
 const app = express();
 
-/**
- * Helmet Security Configuration (custom for API)
- */
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:5500",
+];
+
 app.use(
   helmet({
-    contentSecurityPolicy: false, // API doesn't serve HTML
-    crossOriginEmbedderPolicy: false, // avoids issues with tools like Swagger later
-    frameguard: { action: "deny" }, // prevents clickjacking
-    referrerPolicy: { policy: "no-referrer" }, // hides referrer info
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    frameguard: { action: "deny" },
+    referrerPolicy: { policy: "no-referrer" },
     hsts: {
-      maxAge: 31536000, // 1 year
+      maxAge: 31536000,
       includeSubDomains: true,
     },
-    noSniff: true, // prevents MIME sniffing
-    hidePoweredBy: true, // removes X-Powered-By
+    noSniff: true,
+    hidePoweredBy: true,
   })
 );
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      // allow requests with no browser Origin header, like Postman/curl
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS policy: This origin is not allowed"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
+    optionsSuccessStatus: 204,
+  })
+);
+
 app.use(express.json());
 
 app.get("/api/v1/health", (_req, res) => {
