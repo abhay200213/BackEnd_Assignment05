@@ -56,7 +56,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  * /api/v1/health:
  *   get:
  *     summary: Health check
- *     description: Returns API uptime and server status.
+ *     description: Returns API status, uptime, timestamp, and version.
  *     tags:
  *       - Health
  *     responses:

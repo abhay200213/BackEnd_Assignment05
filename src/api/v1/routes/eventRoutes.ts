@@ -16,11 +16,12 @@ import {
 const router = Router();
 
 const validateIdParam = (req: Request, res: Response, next: NextFunction): void => {
-  const { error } = eventIdSchema.validate(req.params);
+  const { error } = eventIdSchema.validate(req.params, { abortEarly: false });
 
   if (error) {
     res.status(400).json({
-      message: `Validation error: ${error.message}`,
+      message: "Validation error",
+      errors: error.details.map((detail) => detail.message),
     });
     return;
   }
@@ -32,68 +33,63 @@ const validateIdParam = (req: Request, res: Response, next: NextFunction): void 
  * @openapi
  * components:
  *   schemas:
- *     Event:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "abc123"
- *         title:
- *           type: string
- *           example: "Backend Demo Event"
- *         description:
- *           type: string
- *           example: "This is a sample event for testing the API."
- *         date:
- *           type: string
- *           format: date
- *           example: "2026-04-30"
- *         location:
- *           type: string
- *           example: "Winnipeg"
- *     CreateEventInput:
- *       type: object
- *       required:
- *         - title
- *         - description
- *         - date
- *         - location
- *       properties:
- *         title:
- *           type: string
- *           example: "Backend Demo Event"
- *         description:
- *           type: string
- *           example: "This is a sample event for testing the API."
- *         date:
- *           type: string
- *           format: date
- *           example: "2026-04-30"
- *         location:
- *           type: string
- *           example: "Winnipeg"
- *     UpdateEventInput:
- *       type: object
- *       properties:
- *         title:
- *           type: string
- *           example: "Updated Event Title"
- *         description:
- *           type: string
- *           example: "Updated event description."
- *         date:
- *           type: string
- *           format: date
- *           example: "2026-05-02"
- *         location:
- *           type: string
- *           example: "Toronto"
- *     ErrorResponse:
+ *     MessageResponse:
  *       type: object
  *       properties:
  *         message:
  *           type: string
- *           example: "Validation error: \"id\" must be a valid string"
+ *           example: "Event deleted"
+ *
+ *     EventResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Event retrieved"
+ *         data:
+ *           $ref: '#/components/schemas/Event'
+ *
+ *     EventListResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Events retrieved"
+ *         count:
+ *           type: integer
+ *           example: 2
+ *         data:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Event'
+ *
+ *     ValidationError:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Validation error"
+ *         errors:
+ *           type: array
+ *           items:
+ *             type: string
+ *           example:
+ *             - "\"name\" length must be at least 3 characters long"
+ *             - "\"capacity\" must be greater than or equal to 5"
+ *
+ *     NotFoundError:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Event not found"
+ *
+ *     ServerError:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: "Failed to retrieve events"
  */
 
 /**
@@ -116,13 +112,19 @@ const validateIdParam = (req: Request, res: Response, next: NextFunction): void 
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Event'
+ *               $ref: '#/components/schemas/EventResponse'
  *       400:
  *         description: Validation error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationError'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServerError'
  */
 router.post("/", validateRequest(createEventSchema), createEventHandler);
 
@@ -131,18 +133,22 @@ router.post("/", validateRequest(createEventSchema), createEventHandler);
  * /api/v1/events:
  *   get:
  *     summary: Get all events
- *     description: Retrieves a list of all events.
+ *     description: Retrieves all events from the database.
  *     tags:
  *       - Events
  *     responses:
  *       200:
- *         description: A list of events
+ *         description: Events retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Event'
+ *               $ref: '#/components/schemas/EventListResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServerError'
  */
 router.get("/", getAllEventsHandler);
 
@@ -158,29 +164,35 @@ router.get("/", getAllEventsHandler);
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the event
+ *         description: Unique ID of the event
  *         schema:
  *           type: string
  *           example: "abc123"
  *     responses:
  *       200:
- *         description: Event found successfully
+ *         description: Event retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Event'
+ *               $ref: '#/components/schemas/EventResponse'
  *       400:
  *         description: Invalid event ID
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationError'
  *       404:
  *         description: Event not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundError'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServerError'
  */
 router.get("/:id", validateIdParam, getEventByIdHandler);
 
@@ -196,7 +208,7 @@ router.get("/:id", validateIdParam, getEventByIdHandler);
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the event
+ *         description: Unique ID of the event
  *         schema:
  *           type: string
  *           example: "abc123"
@@ -212,19 +224,27 @@ router.get("/:id", validateIdParam, getEventByIdHandler);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Event'
+ *               $ref: '#/components/schemas/EventResponse'
  *       400:
  *         description: Validation error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/ValidationError'
+ *                 - $ref: '#/components/schemas/MessageResponse'
  *       404:
  *         description: Event not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundError'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServerError'
  */
 router.put("/:id", validateIdParam, validateRequest(updateEventSchema), updateEventByIdHandler);
 
@@ -240,7 +260,7 @@ router.put("/:id", validateIdParam, validateRequest(updateEventSchema), updateEv
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the event
+ *         description: Unique ID of the event
  *         schema:
  *           type: string
  *           example: "abc123"
@@ -250,23 +270,25 @@ router.put("/:id", validateIdParam, validateRequest(updateEventSchema), updateEv
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Event deleted successfully"
+ *               $ref: '#/components/schemas/MessageResponse'
  *       400:
  *         description: Invalid event ID
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/ValidationError'
  *       404:
  *         description: Event not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               $ref: '#/components/schemas/NotFoundError'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServerError'
  */
 router.delete("/:id", validateIdParam, deleteEventByIdHandler);
 
