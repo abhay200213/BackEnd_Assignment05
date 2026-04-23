@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { swaggerSpec } from "../config/swagger"; 
+import * as fs from "fs";
+import * as path from "path";
+import { swaggerSpec } from "../config/swagger";
 
 const docsDir = path.join(process.cwd(), "docs");
 const outputPath = path.join(docsDir, "openapi.json");
